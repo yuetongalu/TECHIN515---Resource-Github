@@ -17,7 +17,7 @@ voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[0].id)  # 可以更换索引以选择不同的声音
 
 # 设置OpenAI API键和自定义ChatGPT角色
-openai.api_key = "sk-proj-Wg7a6RNFVTylDnShIjV4T3BlbkFJfUjxV0zx1qUBpgnM0HiF"
+openai.api_key = "sk-proj-el6izMseehUEpqT39m3jT3BlbkFJyWjYzo5USrwjRK007fu6"
 sentence_msg = [
     {"role": "system",
      "content": "我和朋友正在进行一场面试，之后会轮流输入说话的内容。每次我们一个人说完话之后，你需要做两件事：1.对我们说的内容产出一个20字以内的总结；2.从【自信、专业、傻瓜】这三个标签中选择一个最符合当前这段话的标签；3.你每次返回的格式必须符合模版并保持固定。样式为【总结：xxx，标签：xxx】",
