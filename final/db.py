@@ -39,6 +39,7 @@ class DatabaseConnection:
 class SentenceData:
     id: int = 0
     interview_id: int = 0
+    role: str = ''
     origin_sentence: str = ''
     ai_sentence: str = ''
     label: str = ''
@@ -76,11 +77,12 @@ def update_interview(interview_id: int, summary: str, duration: int) -> None:
 def insert_sentence(sentence: SentenceData) -> int:
     with DatabaseConnection() as db:
         query = """
-        INSERT INTO sentence (interview_id, origin_sentence, ai_sentence, label, duration, create_time, update_time)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO sentence (interview_id, role, origin_sentence, ai_sentence, label, duration, create_time, update_time)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
         params = (
-            sentence.interview_id, sentence.origin_sentence, sentence.ai_sentence, sentence.label, sentence.duration,
+            sentence.interview_id, sentence.role, sentence.origin_sentence, sentence.ai_sentence, sentence.label,
+            sentence.duration,
             sentence.create_time, sentence.update_time)
         db.cur.execute(query, params)
         sentence_id = db.con.insert_id()
@@ -112,6 +114,7 @@ def get_sentence_by_interview(interview_id: int) -> List[SentenceData]:
             sentence = SentenceData(
                 id=sentence_data['id'],
                 interview_id=sentence_data['interview_id'],
+                role=sentence_data['role'],
                 origin_sentence=sentence_data['origin_sentence'],
                 ai_sentence=sentence_data['ai_sentence'],
                 label=sentence_data['label'],

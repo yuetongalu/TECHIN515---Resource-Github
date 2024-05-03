@@ -17,24 +17,30 @@ voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[0].id)  # 可以更换索引以选择不同的声音
 
 # 设置OpenAI API键和自定义ChatGPT角色
-openai.api_key = "sk-proj-TQUS6WVF82otvC5jn3xHT3BlbkFJ6eIvYJWqFlvUsCXCJcar"
+openai.api_key = "sk-proj-Wg7a6RNFVTylDnShIjV4T3BlbkFJfUjxV0zx1qUBpgnM0HiF"
 sentence_msg = [
     {"role": "system",
-     "content": "我和朋友正在进行一场面试，之后会轮流输入说话的内容。每次我们一个人说完话之后，你需要做两件事：1.对我们说的内容产出一个50字以内的总结；2.从【自信、专业、傻瓜】这三个标签中选择一个最符合当前这段话的标签；3.你每次返回的格式必须符合模版并保持固定。样式为【总结：xxx，标签：xxx】",
+     "content": "我和朋友正在进行一场面试，之后会轮流输入说话的内容。每次我们一个人说完话之后，你需要做两件事：1.对我们说的内容产出一个20字以内的总结；2.从【自信、专业、傻瓜】这三个标签中选择一个最符合当前这段话的标签；3.你每次返回的格式必须符合模版并保持固定。样式为【总结：xxx，标签：xxx】",
      }
 ]
 interview_msg = [
     {"role": "system", "content": "我会传给你一段面试对话，你需要根据所有的对话内容给我返回一个100字数以内的总结"}
 ]
-all_sentence = []
+
+# 全局参数
 manager = 'manager'
 candidate = 'candidate'
+total_duration = 0
+cur_role = manager
+listening = True
 
 
-def change_role(role: str) -> str:
-    if role == manager:
-        return candidate
-    return manager
+def change_role():
+    global cur_role
+    if cur_role == manager:
+        cur_role = candidate
+    else:
+        cur_role = manager
 
 
 def get_sentence_resp(origin_sentence: str) -> Tuple[str, str]:
@@ -44,18 +50,23 @@ def get_sentence_resp(origin_sentence: str) -> Tuple[str, str]:
     })
     interview_msg.append({
         "role": 'user',
-        "content": interview_msg,
+        "content": origin_sentence,
     })
     try:
         resp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=sentence_msg
         )
-        print(resp)
         chatgpt_reply = resp["choices"][0]["message"]["content"]
         print(chatgpt_reply)
-        return chatgpt_reply
+        tag_index = chatgpt_reply.find("标签:")
+        # 提取总结内容，假设总结部分总是从开始到“标签:”关键字前
+        ai_sentence = chatgpt_reply[3:tag_index].strip() if tag_index != -1 else chatgpt_reply[3:].strip()
+        # 提取标签内容，从“标签:”开始到字符串末尾
+        tag = chatgpt_reply[tag_index + 3:].strip() if tag_index != -1 else ""
+        return ai_sentence, tag
     except Exception as e:
+        print("Failed to get response from OpenAI: " + str(e))
         return "Failed to get response from OpenAI: " + str(e), ''
 
 
@@ -73,38 +84,43 @@ def get_interview_resp() -> str:
         return "Failed to get response from OpenAI: " + str(e)
 
 
-def listen_and_respond(role: str) -> Tuple[bool, int]:
+def listen_and_respond():
+    global listening
+    global total_duration
     with sr.Microphone() as source:
         recognizer = sr.Recognizer()
         recognizer.adjust_for_ambient_noise(source, duration=1)
-        print("Please [%s] speak now..." % (role))
+        print("Please [%s] speak now..." % cur_role)
         try:
             # 监听音频
             audio = recognizer.listen(source, timeout=None, phrase_time_limit=5)
             # 生成原文
             origin_sentence = recognizer.recognize_google(audio)
-            print("[%s] said: %s" % (role, origin_sentence))
+            print("[%s] said: %s" % (cur_role, origin_sentence))
             # 判断终止
             if "stop listening" in origin_sentence.lower():
                 print("Stopping listening.")
-                return False, 0
+                listening = False
+                return
             # 生成：音频时长，译文，标签
-            duration = len(audio.frame_data) / (audio.sample_rate * audio.sample_width)
+            sentence_duration = int(len(audio.frame_data) / (audio.sample_rate * audio.sample_width))
             ai_sentence, label = get_sentence_resp(origin_sentence)
             # 插入sentence
             sentence = db.SentenceData(
                 interview_id=interview_id,
+                role=cur_role,
                 origin_sentence=origin_sentence,
                 ai_sentence=ai_sentence,
                 label=label,
-                duration=int(duration),
+                duration=sentence_duration,
             )
+            # 插入sentence表
             db.insert_sentence(sentence)
-            all_sentence.append(origin_sentence)
+            total_duration = total_duration + sentence_duration
             # 说话
             engine.say(ai_sentence)
             engine.runAndWait()
-            return True, int(duration)
+            return
 
         except sr.UnknownValueError:
             engine.say("I didn't understand what was said.")
@@ -115,15 +131,15 @@ def listen_and_respond(role: str) -> Tuple[bool, int]:
 
 
 if __name__ == "__main__":
+    # 插入interview表
     interview_id = db.insert_interview('', 0)
-    total_duration = 0
-    role = manager
-    listening = True
+    # 循环处理音频
     while listening:
-        listening, duration = listen_and_respond(role)
-        role = change_role(role)
-        total_duration = 0
+        listen_and_respond()
+        change_role()
 
-    # todo 调用openai，更新interview
-    db.update_interview(interview_id, '', total_duration)
+    # 生成总结
+    summary = get_interview_resp()
+    # 更新interview表
+    db.update_interview(interview_id, summary, total_duration)
     engine.stop()
