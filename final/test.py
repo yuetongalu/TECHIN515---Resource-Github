@@ -6,6 +6,7 @@ import openai
 import db
 import os
 from typing import Tuple
+from dotenv import load_dotenv
 
 # 初始化 pyttsx3
 # engine = pyttsx3.init()
@@ -19,7 +20,8 @@ from typing import Tuple
 # engine.setProperty('voice', voices[0].id)  # 可以更换索引以选择不同的声音
 
 # 设置OpenAI API键和自定义ChatGPT角色
-openai.api_key = "sk-proj-el6izMseehUEpqT39m3jT3BlbkFJyWjYzo5USrwjRK007fu6"
+load_dotenv()
+openai.api_key = os.getenv('openai_key')
 sentence_msg = [
     {"role": "system",
      "content": "我和朋友正在进行一场面试，之后会轮流输入说话的内容。每次我们一个人说完话之后，你需要做两件事：1.对我们说的内容产出一个20字以内的总结；2.从【自信、专业、傻瓜】这三个标签中选择一个最符合当前这段话的标签；3.你每次返回的格式必须符合模版并保持固定。样式为【总结：xxx，标签：xxx】",
@@ -129,7 +131,8 @@ def listen_and_respond(origin_sentence: str):
 if __name__ == "__main__":
     # 插入interview表
     interview_id = db.insert_interview('', 0)
-    s = ["你好，请先做个自我介绍", "我叫apple，我在找sde工作", "你会java吗", "不会", "那你会什么", "我擅长写ppt，曾经获得比赛第一名", "很好，你符合我们的要求，你被录用了", "谢谢", "stop listening"]
+    s = ["你好，请先做个自我介绍", "我叫apple，我在找sde工作", "你会java吗", "不会", "那你会什么",
+         "我擅长写ppt，曾经获得比赛第一名", "很好，你符合我们的要求，你被录用了", "谢谢", "stop listening"]
     i = 0
     # 循环处理音频
     while listening:
