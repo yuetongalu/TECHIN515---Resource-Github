@@ -1,5 +1,7 @@
 # import speech_recognition as sr
 # import pyttsx3
+import time
+
 import openai
 import db
 import os
@@ -134,6 +136,7 @@ if __name__ == "__main__":
         listen_and_respond(s[i])
         change_role()
         i += 1
+        time.sleep(5)
 
     # 生成总结
     summary = get_interview_resp()
