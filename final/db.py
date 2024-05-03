@@ -4,7 +4,7 @@ import pymysql
 from pymysql.cursors import DictCursor
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from datetime import datetime
 
 
