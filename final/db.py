@@ -4,26 +4,20 @@ import pymysql
 from pymysql.cursors import DictCursor
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 from datetime import datetime
 
+load_dotenv()
 
-# todo:后续改为调用.env
-# load_dotenv()
-# db_host = os.getenv('DB_HOST')
-# db_port = int(os.getenv('DB_PORT'))
-# db_user = os.getenv('DB_USER')
-# db_password = os.getenv('DB_PASSWORD')
-# db_name = os.getenv('DB_NAME')
 
 class DatabaseConnection:
     def __init__(self):
         self.con = pymysql.connect(
-            host='xrj-warehouse.c524wq86ghc0.us-west-2.rds.amazonaws.com',
-            port=3306,
-            user='xrj_warehouse',
-            password='dsfx1711',
-            database='warehouse',
+            host=os.getenv('DB_HOST'),
+            port=int(os.getenv('DB_PORT')),
+            user=os.getenv('DB_USER'),
+            password=os.getenv('DB_PASSWORD'),
+            database=os.getenv('DB_NAME'),
         )
         self.cur = self.con.cursor(DictCursor)  # 使用 DictCursor
 
