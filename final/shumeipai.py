@@ -1,10 +1,8 @@
 import speech_recognition as sr
 import pyttsx3
-import openai
 import db
-import os
-from typing import Tuple
-from dotenv import load_dotenv
+import my_openai
+from typing import List
 
 # 初始化 pyttsx3
 engine = pyttsx3.init()
@@ -17,19 +15,8 @@ engine.setProperty('volume', 1.0)  # 最大音量
 voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[0].id)  # 可以更换索引以选择不同的声音
 
-# 设置OpenAI API键和自定义ChatGPT角色
-load_dotenv()
-openai.api_key = os.getenv('openai_key')
-sentence_msg = [
-    {"role": "system",
-     "content": "我和朋友正在进行一场面试，之后会轮流输入说话的内容。每次我们一个人说完话之后，你需要做两件事：1.对我们说的内容产出一个20字以内的总结；2.从【自信、专业、傻瓜】这三个标签中选择一个最符合当前这段话的标签；3.你每次返回的格式必须符合模版并保持固定。样式为【总结：xxx，标签：xxx】",
-     }
-]
-interview_msg = [
-    {"role": "system", "content": "我会传给你一段面试对话，你需要根据所有的对话内容给我返回一个100字数以内的总结"}
-]
-
 # 全局参数
+origin_sentences: List[str] = []
 manager = 'manager'
 candidate = 'candidate'
 total_duration = 0
@@ -45,50 +32,10 @@ def change_role():
         cur_role = manager
 
 
-def get_sentence_resp(origin_sentence: str) -> Tuple[str, str]:
-    sentence_msg.append({
-        "role": 'user',
-        "content": origin_sentence,
-    })
-    interview_msg.append({
-        "role": 'user',
-        "content": origin_sentence,
-    })
-    try:
-        resp = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=sentence_msg
-        )
-        chatgpt_reply = resp["choices"][0]["message"]["content"]
-        print(chatgpt_reply)
-        tag_index = chatgpt_reply.find("标签:")
-        # 提取总结内容，假设总结部分总是从开始到“标签:”关键字前
-        ai_sentence = chatgpt_reply[3:tag_index].strip() if tag_index != -1 else chatgpt_reply[3:].strip()
-        # 提取标签内容，从“标签:”开始到字符串末尾
-        tag = chatgpt_reply[tag_index + 3:].strip() if tag_index != -1 else ""
-        return ai_sentence, tag
-    except Exception as e:
-        print("Failed to get response from OpenAI: " + str(e))
-        return "Failed to get response from OpenAI: " + str(e), ''
-
-
-def get_interview_resp() -> str:
-    try:
-        resp = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=interview_msg
-        )
-        print(resp)
-        summary = resp["choices"][0]["message"]["content"]
-        print(summary)
-        return summary
-    except Exception as e:
-        return "Failed to get response from OpenAI: " + str(e)
-
-
 def listen_and_respond():
     global listening
     global total_duration
+    global origin_sentences
     with sr.Microphone() as source:
         recognizer = sr.Recognizer()
         recognizer.adjust_for_ambient_noise(source, duration=1)
@@ -106,7 +53,9 @@ def listen_and_respond():
                 return
             # 生成：音频时长，译文，标签
             sentence_duration = int(len(audio.frame_data) / (audio.sample_rate * audio.sample_width))
-            ai_sentence, label = get_sentence_resp(origin_sentence)
+            total_duration = total_duration + sentence_duration
+            origin_sentences.append(origin_sentence)
+            ai_sentence, label = my_openai.get_sentence_resp(origin_sentences)
             # 插入sentence
             sentence = db.SentenceData(
                 interview_id=interview_id,
@@ -118,7 +67,6 @@ def listen_and_respond():
             )
             # 插入sentence表
             db.insert_sentence(sentence)
-            total_duration = total_duration + sentence_duration
             # 说话
             engine.say(ai_sentence)
             engine.runAndWait()
@@ -134,14 +82,14 @@ def listen_and_respond():
 
 if __name__ == "__main__":
     # 插入interview表
-    interview_id = db.insert_interview('', 0)
+    interview_id = db.insert_interview(0, '', 0)
     # 循环处理音频
     while listening:
         listen_and_respond()
         change_role()
 
     # 生成总结
-    summary = get_interview_resp()
+    summary = my_openai.get_interview_resp(origin_sentences)
     # 更新interview表
     db.update_interview(interview_id, summary, total_duration)
     engine.stop()
