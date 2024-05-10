@@ -10,17 +10,26 @@ def select_interview() -> int:
 
 
 def display_data_by_interview(interview_id: int):
+    interview = db.get_interview_data(interview_id)
     st.header('Interview Detail')
-    st.write(f"面试ID: {interview_id}")
-    sentences = db.get_sentence_by_interview(interview_id)
-    for sentence in sentences:
-        st.write(f"句子ID: {sentence.id} | 角色: {sentence.role} | 时长: {sentence.duration} | 开始时间: {sentence.create_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        st.write(f"原文: {sentence.origin_sentence}")
-        st.write(f"译文: {sentence.ai_sentence}")
+
+    st.subheader('Interview Info')
+    st.write(f"Interview ID: {interview_id} | Duration: {interview.duration} | Start Time: {interview.create_time}")
+
+    st.subheader('Interview Summary')
+    st.write(interview.summary)
+
+    st.subheader('Sentences')
+    for sentence in interview.sentences:
+        st.write(
+            f"Sentence ID: {sentence.id} | Role: {sentence.role} | Duration: {sentence.duration} | Start Time: {sentence.create_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        st.write(f"Original Sentence: {sentence.origin_sentence}")
+        st.write(f"Key Words: {sentence.ai_sentence}")
         st.write("")
 
+
 def display_interview_dimension(interview_id: int):
-    if st.sidebar.button("返回", key='goback_project'):
+    if st.sidebar.button("Return", key='goback_project'):
         st.session_state['selected_interview'] = 0
         st.experimental_rerun()
     st.sidebar.title("Interview Selection")
@@ -53,25 +62,26 @@ def display_data_by_project(project_id: int):
             labels[sentence.label].append(sentence)
 
     # 展示
-    st.subheader('标签聚合信息')
+    st.subheader('Label Group')
     for label, sentences in labels.items():
         with st.expander(f"Label: {label}"):
             st.subheader(f"Label: {label}")
-            st.subheader("标签总结：")
+            st.subheader("Label Summary：")
             # 实时调用openai处理
             st.write(my_openai.get_tag_summary(sentences))
-            st.subheader("相关对话：")
+            st.subheader("Sentences：")
             for sentence in sentences:
                 sentence_display = f"{sentence.role}: {sentence.ai_sentence} -- {sentence.create_time.strftime('%Y-%m-%d %H:%M:%S')}"
                 st.text(sentence_display)
 
-    st.subheader("面试列表")
+    st.subheader("Interview List")
     for interview in interviews:
         col1, col2 = st.columns([3, 1])
         with col1:
-            st.write(f"面试ID: {interview.id} | 时长: {interview.duration} | 开始时间: {interview.create_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            st.write(
+                f"Interview ID: {interview.id} | Duration: {interview.duration} | Start Time: {interview.create_time.strftime('%Y-%m-%d %H:%M:%S')}")
         with col2:
-            if st.button("面试详情", key=interview.id):  # 为每个面试添加详情按钮，注意key的设置避免重复
+            if st.button("Interview Detail", key=interview.id):  # 为每个面试添加详情按钮，注意key的设置避免重复
                 st.session_state['selected_interview'] = interview.id
                 st.session_state['selected_project'] = project_id
                 st.experimental_rerun()

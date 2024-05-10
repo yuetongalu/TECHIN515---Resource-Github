@@ -102,6 +102,21 @@ def get_all_interview(project_id: int) -> List[InterviewData]:
         return interviews
 
 
+def get_interview(interview_id: int) -> InterviewData:
+    with DatabaseConnection() as db:
+        db.cur.execute("SELECT * FROM interview WHERE id = %s", (interview_id,))
+        for v in db.cur.fetchall():
+            interview = InterviewData(
+                id=v['id'],
+                project_id=v['project_id'],
+                summary=v['summary'],
+                duration=v['duration'],
+                create_time=v['create_time'],
+                update_time=v['update_time']
+            )
+            return interview
+
+
 def get_sentence_by_interview(interview_id: int) -> List[SentenceData]:
     with DatabaseConnection() as db:
         db.cur.execute("SELECT * FROM sentence WHERE interview_id = %s ORDER BY create_time ASC", (interview_id,))
@@ -122,12 +137,11 @@ def get_sentence_by_interview(interview_id: int) -> List[SentenceData]:
         return sentences
 
 
-# def get_all_data() -> List[InterviewData]:
-#     interviews = get_all_interview()
-#     for interview in interviews:
-#         sentences = get_sentence_by_interview(interview.id)
-#         interview.sentences.extend(sentences)
-#     return interviews
+def get_interview_data(interview_id: int) -> InterviewData:
+    interview = get_interview(interview_id)
+    sentences = get_sentence_by_interview(interview.id)
+    interview.sentences.extend(sentences)
+    return interview
 
 
 def get_project_data(project_id: int) -> List[InterviewData]:
@@ -140,6 +154,7 @@ def get_project_data(project_id: int) -> List[InterviewData]:
 
 def get_all_projects():
     with DatabaseConnection() as db:
-        db.cur.execute("SELECT DISTINCT project_id, MIN(create_time) as create_time FROM interview GROUP BY project_id ORDER BY create_time DESC")
+        db.cur.execute(
+            "SELECT DISTINCT project_id, MIN(create_time) as create_time FROM interview GROUP BY project_id ORDER BY create_time DESC")
         projects = db.cur.fetchall()
         return projects
